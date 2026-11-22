@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
+python-dotenv
+supabase
+bcrypt
+langchain-core
+langchain-groq
+langgraph

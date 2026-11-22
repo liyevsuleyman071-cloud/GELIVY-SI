@@ -1,0 +1,47 @@
+{% extends "auth_base.html" %}
+
+{% block heading %}Hesab yaradın{% endblock %}
+{% block subheading %}Bir neçə saniyəyə başlayın{% endblock %}
+
+{% block form %}
+<form hx-post="/auth/signup"
+      hx-target="#form-error"
+      hx-swap="innerHTML"
+      hx-disabled-elt="find button[type=submit]"
+      action="/auth/signup" method="post" class="space-y-4">
+
+    <div id="form-error" aria-live="polite">{% include "partials/alert.html" %}</div>
+
+    <div>
+        <label for="name" class="mb-1.5 block text-sm font-medium text-slate-700">Adınız</label>
+        <input id="name" type="text" name="name" value="{{ name or '' }}" placeholder="Adınızı daxil edin"
+               autocomplete="name" minlength="2" maxlength="50" required
+               class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:text-sm">
+    </div>
+
+    <div>
+        <label for="phone" class="mb-1.5 block text-sm font-medium text-slate-700">Telefon nömrəsi</label>
+        <input id="phone" type="tel" inputmode="tel" name="phone" value="{{ phone or '' }}"
+               placeholder="+994 XX XXX XX XX" autocomplete="tel" required
+               class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:text-sm">
+    </div>
+
+    <div>
+        <label for="password" class="mb-1.5 block text-sm font-medium text-slate-700">Şifrə</label>
+        <div class="relative">
+            <input id="password" type="password" name="password" placeholder="Ən azı 8 simvol"
+                   autocomplete="new-password" minlength="8" required
+                   class="w-full rounded-xl border border-slate-300 py-2.5 pl-3.5 pr-20 text-base outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:text-sm">
+            <button type="button" data-toggle-password="password"
+                    class="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700">Göstər</button>
+        </div>
+    </div>
+
+    <button type="submit"
+            class="w-full rounded-xl bg-blue-600 py-2.5 text-base font-semibold text-white shadow-sm transition hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm">
+        Qeydiyyatdan keç
+    </button>
+</form>
+{% endblock %}
+
+{% block footer_link %}Artıq hesabınız var? <a href="/auth/login" class="font-semibold text-blue-600 hover:underline">Daxil olun</a>{% endblock %}

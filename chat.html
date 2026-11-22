@@ -1,0 +1,154 @@
+{% extends "app_base.html" %}
+{% from "partials/macros.html" import human, ai, reply_error %}
+
+{% block header_title %}{{ chat_title or "Yeni söhbət" }}{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+{% endblock %}
+
+{% block main %}
+<!-- Mesajlar -->
+<div id="chat-scroll" class="flex-1 overflow-y-auto">
+    <div id="chat-messages" class="mx-auto w-full max-w-3xl space-y-4 px-3 py-4 sm:space-y-5 sm:px-4 sm:py-6">
+
+        {{ ai("Salam! Sizə necə kömək edə bilərəm?") }}
+
+        {% for m in messages %}
+            {% if m.role == "human" %}{{ human(m.content) }}{% else %}{{ ai(m.content) }}{% endif %}
+        {% endfor %}
+
+        {# Son mesaj istifadəçinindirsə, cavab alınmayıb: təkrar cəhd düyməsi göstəririk #}
+        {% if messages and messages[-1].role == "human" %}{{ reply_error(chat_id) }}{% endif %}
+    </div>
+</div>
+
+<!-- Mesaj yazma paneli -->
+<footer class="shrink-0 border-t border-slate-200 bg-white px-3 pt-3 sm:px-4"
+        style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom));">
+    <div class="mx-auto max-w-3xl">
+
+        {% if not messages %}
+        <div id="suggestions" class="mb-3 flex flex-wrap gap-2">
+            {% for s in ["Mənə sadə bir gündəlik plan hazırla", "Bu mövzunu uşağa izah et", "Python-da nümunə kod göstər"] %}
+            <button type="button" data-prompt="{{ s }}"
+                    class="rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-sm text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700">{{ s }}</button>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form id="chat-form"
+              hx-post="/chat/{{ chat_id }}/send"
+              hx-target="#chat-messages"
+              hx-swap="beforeend"
+              class="flex items-end gap-2">
+
+            <textarea id="message-input" name="message" rows="1" maxlength="2000" required
+                      placeholder="Mesajınızı yazın..." autocomplete="off"
+                      class="max-h-40 min-w-0 flex-1 resize-none rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-base outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:text-sm"></textarea>
+
+            <button id="send-btn" type="submit" aria-label="Göndər"
+                    class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-sm transition hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                </svg>
+            </button>
+        </form>
+
+        <p class="mt-2 hidden text-center text-xs text-slate-400 md:block">Enter — göndər · Shift+Enter — yeni sətir</p>
+    </div>
+</footer>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+    (function () {
+        var form = document.getElementById('chat-form');
+        var input = document.getElementById('message-input');
+        var sendBtn = document.getElementById('send-btn');
+        var scroller = document.getElementById('chat-scroll');
+        var busy = false;
+
+        function reqPath(e) {
+            var d = e.detail || {};
+            return (d.requestConfig && d.requestConfig.path) || (d.pathInfo && d.pathInfo.requestPath) || '';
+        }
+        function isSend(e) { return reqPath(e).slice(-5) === '/send'; }
+        function isReply(e) { return reqPath(e).slice(-6) === '/reply'; }
+
+        function setBusy(state) {
+            busy = state;
+            sendBtn.disabled = state;
+        }
+
+        function scrollToBottom(smooth) {
+            scroller.scrollTo({ top: scroller.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+        }
+
+        // AI cavablarını Markdown kimi göstər (DOMPurify ilə təmizlənir)
+        function renderMarkdown(root) {
+            if (!window.marked || !window.DOMPurify) return;
+            root.querySelectorAll('[data-md]:not([data-done])').forEach(function (el) {
+                var html = window.marked.parse(el.textContent, { breaks: true, gfm: true });
+                el.innerHTML = window.DOMPurify.sanitize(html);
+                el.classList.remove('whitespace-pre-wrap');
+                el.dataset.done = '1';
+            });
+        }
+
+        function autoResize() {
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 160) + 'px';
+        }
+
+        // Enter göndərir (yalnız kompüterdə), Shift+Enter yeni sətir
+        input.addEventListener('input', autoResize);
+        input.addEventListener('keydown', function (e) {
+            var desktop = window.matchMedia('(min-width: 768px)').matches;
+            if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && desktop) {
+                e.preventDefault();
+                if (!busy && input.value.trim()) htmx.trigger(form, 'submit');
+            }
+        });
+
+        // Təklif düymələri
+        document.querySelectorAll('[data-prompt]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                input.value = btn.dataset.prompt;
+                htmx.trigger(form, 'submit');
+            });
+        });
+
+        document.body.addEventListener('htmx:beforeRequest', function (e) {
+            if (!isSend(e)) return;
+            if (busy || !input.value.trim()) { e.preventDefault(); return; }
+            setBusy(true);
+        });
+
+        document.body.addEventListener('htmx:afterRequest', function (e) {
+            if (isSend(e)) {
+                if (e.detail.successful) {
+                    form.reset();
+                    autoResize();
+                    var s = document.getElementById('suggestions');
+                    if (s) s.remove();
+                } else {
+                    setBusy(false); // xəta: mətn qalır, yenidən göndərmək olar
+                }
+            } else if (isReply(e)) {
+                setBusy(false);
+                input.focus();
+            }
+        });
+
+        document.body.addEventListener('htmx:afterSwap', function () {
+            renderMarkdown(document.getElementById('chat-messages'));
+            scrollToBottom(true);
+        });
+
+        renderMarkdown(document.getElementById('chat-messages'));
+        scrollToBottom(false);
+    })();
+</script>
+{% endblock %}

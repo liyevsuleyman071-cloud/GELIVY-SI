@@ -1,0 +1,56 @@
+{# Söhbət elementləri. Bütün mətn Jinja2 tərəfindən avtomatik escape olunur (XSS-dən qorunma). #}
+
+{% macro avatar() -%}
+<div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-sm">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+    </svg>
+</div>
+{%- endmacro %}
+
+{% macro human(content) -%}
+<div class="flex justify-end">
+    <div class="max-w-[85%] rounded-2xl rounded-br-md bg-blue-600 px-4 py-2.5 text-white shadow-sm sm:max-w-[75%]">
+        <p class="whitespace-pre-wrap break-words text-[15px] leading-relaxed">{{ content }}</p>
+    </div>
+</div>
+{%- endmacro %}
+
+{% macro ai(content) -%}
+<div class="flex items-start gap-3">
+    {{ avatar() }}
+    <div class="min-w-0 max-w-[85%] rounded-2xl rounded-tl-md border border-slate-200 bg-white px-4 py-2.5 shadow-sm sm:max-w-[75%]">
+        <div data-md class="prose prose-sm prose-slate max-w-none whitespace-pre-wrap break-words">{{ content }}</div>
+    </div>
+</div>
+{%- endmacro %}
+
+{# "Yazır..." göstəricisi: yüklənən kimi /reply çağırır və özünü AI cavabı ilə əvəz edir #}
+{% macro pending(chat_id) -%}
+<div id="pending-reply" class="flex items-start gap-3" aria-live="polite"
+     hx-post="/chat/{{ chat_id }}/reply" hx-trigger="load" hx-target="this" hx-swap="outerHTML">
+    {{ avatar() }}
+    <div class="rounded-2xl rounded-tl-md border border-slate-200 bg-white px-4 py-3.5 shadow-sm">
+        <span class="sr-only">Cavab hazırlanır…</span>
+        <div class="flex items-center gap-1" aria-hidden="true">
+            <span class="h-2 w-2 animate-bounce rounded-full bg-slate-400"></span>
+            <span class="h-2 w-2 animate-bounce rounded-full bg-slate-400 [animation-delay:150ms]"></span>
+            <span class="h-2 w-2 animate-bounce rounded-full bg-slate-400 [animation-delay:300ms]"></span>
+        </div>
+    </div>
+</div>
+{%- endmacro %}
+
+{% macro reply_error(chat_id) -%}
+<div class="reply-error flex items-start gap-3">
+    {{ avatar() }}
+    <div class="rounded-2xl rounded-tl-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-sm">
+        <p>Cavab alınmadı. Bir az sonra yenidən cəhd edin.</p>
+        <button type="button"
+                hx-post="/chat/{{ chat_id }}/reply" hx-target="closest .reply-error" hx-swap="outerHTML" hx-disabled-elt="this"
+                class="mt-2 rounded-lg border border-red-300 bg-white px-3 py-1 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-60">
+            Yenidən cəhd et
+        </button>
+    </div>
+</div>
+{%- endmacro %}

@@ -1,0 +1,4 @@
+{% from "partials/macros.html" import human, pending %}
+{{ human(message) }}
+{{ pending(chat_id) }}
+{% if new_chat %}{% include "partials/chat_list.html" %}{% endif %}
